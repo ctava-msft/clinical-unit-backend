@@ -1,0 +1,59 @@
+name: clinicalrounds
+metadata:
+  template: clinicalrounds@0.0.1-beta
+services:
+  api:
+    project: ../clinical-rounds-backend
+    language: python
+    host: containerapp
+    docker:
+      remoteBuild: true
+  web:
+    project: ../clinical-rounds-frontend
+    language: js
+    host: containerapp
+    docker:
+      remoteBuild: true
+hooks:
+  preprovision:
+    posix:
+      shell: sh
+      continueOnError: false
+      interactive: true
+      run: infra/hooks/preprovision.sh
+    windows:
+      shell: pwsh
+      continueOnError: false
+      interactive: true
+      run: infra/hooks/preprovision.ps1
+  postprovision:
+    posix:
+      shell: sh
+      continueOnError: false
+      interactive: true
+      run: infra/hooks/postprovision.sh
+    windows:
+      shell: pwsh
+      continueOnError: false
+      interactive: true
+      run: infra/hooks/postprovision.ps1
+infra:
+    provider: "bicep"
+
+pipeline:
+  variables:
+    - AZURE_OPENAI_ENDPOINT
+    - AZURE_OPENAI_API_VERSION
+    - AZURE_RESOURCE_GROUP
+    - AZURE_OPENAI_4_EVAL_DEPLOYMENT_NAME
+    - AZURE_OPENAI_DEPLOYMENT_NAME
+    - AZURE_OPENAI_NAME
+    - AZURE_CONTAINER_REGISTRY_NAME   
+    - AZURE_RESOURCE_GROUP
+    - COSMOSDB_DATABASE
+    - COSMOSDB_COLLECTION
+    - COSMOSDB_USERNAME
+    - COSMOSDB_HOST
+    - COSMOSDB_OPTIONS
+  secrets:
+    - COSMOSDB_PASSWORD

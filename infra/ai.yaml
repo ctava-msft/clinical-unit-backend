@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=ai.yaml.json
+
+deployments:
+  - name: text-embedding-ada-002
+    model:
+      format: OpenAI
+      name: text-embedding-ada-002
+    sku:
+      name: "Standard"
+      capacity: 20
+  - name: gpt-4
+    model:
+      format: OpenAI
+      name: gpt-4o
+    sku:
+      name: "GlobalStandard"
+      capacity: 80
+  - name: gpt-4-evals
+    model:
+      format: OpenAI
+      name: gpt-4o-mini
+    sku:
+      name: "GlobalStandard"
+      capacity: 80

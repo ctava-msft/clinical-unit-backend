@@ -1,0 +1,357 @@
+[
+  {
+    "id": "756cc81d-246f-40eb-84ae-f5ad40ffac45",
+    "mrn": "P001",
+    "visit_id": "V100",
+    "name": "Alice Johnson",
+    "dob": "20010403",
+    "gender": "Female",
+    "admit_date": "2024-05-07",
+    "site": "MSB",
+    "bed": "05W-03-01",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      },
+      {
+        "name": "AMI",
+        "label": "high",
+        "score": "0.91"
+      }
+    ],
+    "rounds": {
+      "subjective": "Patient reports chest pain 6/10, described as crushing, radiating to left arm. Shortness of breath on exertion.",
+      "objective": "HR 102 bpm, BP 150/95, O2 sat 96% on 2L NC. EKG shows ST elevation in leads II, III, aVF. Troponin elevated at 2.5.",
+      "assessment": "Acute inferior STEMI, cardiogenic shock risk. Requires urgent cardiac catheterization.",
+      "plan": "Emergent cardiac cath, dual antiplatelet therapy, heparin protocol. Monitor cardiac enzymes q6h. Cardiology consult."
+    }
+  },
+  {
+    "id": "4e29ade4-7d5d-4abe-ac12-a89e2aaa0bd0",
+    "mrn": "P002",
+    "visit_id": "V101",
+    "name": "Bob Smith",
+    "dob": "20031124",
+    "gender": "Male",
+    "admit_date": "2024-05-10",
+    "site": "MSW",
+    "bed": "05W-03-02",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      },
+      {
+        "name": "AMI",
+        "label": "high",
+        "score": "0.78"
+      }
+    ],
+    "rounds": {
+      "subjective": "Patient reports palpitations and dizziness for 2 days. Denies chest pain but feels weak and fatigued.",
+      "objective": "HR irregular 45-120 bpm, BP 110/70. EKG shows atrial fibrillation with RVR. Echo shows EF 35%, mild mitral regurgitation.",
+      "assessment": "New onset atrial fibrillation with rapid ventricular response. Systolic heart failure, likely ischemic cardiomyopathy.",
+      "plan": "Rate control with metoprolol, anticoagulation with warfarin. ACE inhibitor for heart failure. Cardiology follow-up in 1 week."
+    }
+  },
+  {
+    "id": "1e2a34e0-8f2c-4334-9f81-5651be66076e",
+    "mrn": "P003",
+    "visit_id": "V102",
+    "name": "Carlos Diaz",
+    "dob": "19950701",
+    "gender": "Male",
+    "admit_date": "2024-05-11",
+    "site": "MSQ",
+    "bed": "06W-03-02",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      },
+      {
+        "name": "AMI",
+        "label": "high",
+        "score": "0.85"
+      }
+    ],
+    "rounds": {
+      "subjective": "Patient reports severe shortness of breath, orthopnea, and bilateral lower extremity swelling for 1 week.",
+      "objective": "HR 98 bpm, BP 160/100, RR 24, O2 sat 88% on room air. JVD present, bilateral crackles, 3+ pitting edema to knees.",
+      "assessment": "Acute decompensated heart failure, NYHA Class IV. Possible acute on chronic systolic dysfunction.",
+      "plan": "IV furosemide 40mg BID, strict I/O monitoring. Daily weights. Echo and BNP ordered. Consider ACE inhibitor when stable."
+    }
+  },
+  {
+    "id": "79db7f7c-bee2-44db-89bf-4ee883ec3b57",
+    "mrn": "P004",
+    "visit_id": "V103",
+    "name": "Diana Patel",
+    "dob": "19890514",
+    "gender": "Female",
+    "admit_date": "2024-05-01",
+    "site": "MSM",
+    "bed": "01W-02-02",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      }
+    ],
+    "rounds": {
+      "subjective": "Complains of shortness of breath, worse with exertion.",
+      "objective": "No signs of infection, surgical site clean and dry.",
+      "assessment": "Improving UTI, continue antibiotics, monitor intake/output.",
+      "plan": "Check iron studies, consider hematology consult if no improvement."
+    }
+  },
+  {
+    "id": "72fe51f5-5b64-4400-a80c-5de3644c4fa8",
+    "mrn": "P005",
+    "visit_id": "V104",
+    "name": "Ethan Lee",
+    "dob": "20100910",
+    "gender": "Male",
+    "admit_date": "2024-05-05",
+    "site": "MSB",
+    "bed": "07W-01-01",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      }
+    ],
+    "rounds": {
+      "subjective": "Feeling fatigued, reports poor appetite over the past 3 days.",
+      "objective": "EKG normal sinus rhythm, no acute changes noted.",
+      "assessment": "Improving UTI, continue antibiotics, monitor intake/output.",
+      "plan": "Discharge planning for home with follow-up in clinic in 3 days."
+    }
+  },
+  {
+    "id": "bd2de57c-f160-41bc-8a31-463e38c60e86",
+    "mrn": "P006",
+    "visit_id": "V105",
+    "name": "Fatima Noor",
+    "dob": "20080125",
+    "gender": "Female",
+    "admit_date": "2024-05-07",
+    "site": "MSB",
+    "bed": "08W-03-03",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      }
+    ],
+    "rounds": {
+      "subjective": "Patient reports mild abdominal pain, denies nausea or vomiting.",
+      "objective": "O2 saturation 94% on room air, clear breath sounds.",
+      "assessment": "Possible early sepsis, monitor closely and repeat labs.",
+      "plan": "Administer IV fluids, blood cultures ordered, start empiric antibiotics."
+    }
+  },
+  {
+    "id": "24175708-c17f-4d25-b50b-41a8439854a0",
+    "mrn": "P007",
+    "visit_id": "V106",
+    "name": "George Wang",
+    "dob": "20000415",
+    "gender": "Male",
+    "admit_date": "2024-05-03",
+    "site": "MSB",
+    "bed": "02W-03-02",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      }
+    ],
+    "rounds": {
+      "subjective": "States they slept well and feel better today.",
+      "objective": "No signs of infection, surgical site clean and dry.",
+      "assessment": "Stable post-op day 2, tolerating diet, pain well managed.",
+      "plan": "Check iron studies, consider hematology consult if no improvement."
+    }
+  },
+  {
+    "id": "73f1c79c-e88f-47b8-ad33-370b7f160116",
+    "mrn": "P008",
+    "visit_id": "V107",
+    "name": "Hannah Kim",
+    "dob": "20150905",
+    "gender": "Female",
+    "admit_date": "2024-05-09",
+    "site": "MSH",
+    "bed": "01W-01-03",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      }
+    ],
+    "rounds": {
+      "subjective": "Feeling fatigued, reports poor appetite over the past 3 days.",
+      "objective": "O2 saturation 94% on room air, clear breath sounds.",
+      "assessment": "Stable post-op day 2, tolerating diet, pain well managed.",
+      "plan": "Discharge planning for home with follow-up in clinic in 3 days."
+    }
+  },
+  {
+    "id": "900b3594-0bc2-41a2-bfff-52b72cbe89fd",
+    "mrn": "P009",
+    "visit_id": "V108",
+    "name": "Ivan Petrov",
+    "dob": "20121120",
+    "gender": "Male",
+    "admit_date": "2024-05-03",
+    "site": "MSM",
+    "bed": "09W-03-03",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      }
+    ],
+    "rounds": {
+      "subjective": "Denies chest pain, no palpitations.",
+      "objective": "No signs of infection, surgical site clean and dry.",
+      "assessment": "Possible early sepsis, monitor closely and repeat labs.",
+      "plan": "Continue current meds, encourage ambulation, reassess tomorrow."
+    }
+  },
+  {
+    "id": "ae7eacce-d13a-4326-b32c-e7e100d1ea8b",
+    "mrn": "P010",
+    "visit_id": "V109",
+    "name": "Julia Santos",
+    "dob": "20130511",
+    "gender": "Female",
+    "admit_date": "2024-05-09",
+    "site": "MSW",
+    "bed": "08W-01-02",
+    "predictions": [
+      {
+        "name": "pressure_injury",
+        "label": "low",
+        "score": "0.32"
+      },
+      {
+        "name": "4hr_discharge",
+        "label": "high",
+        "score": "0.82"
+      },
+      {
+        "name": "malnutrition",
+        "label": "low",
+        "score": "0.18"
+      }
+    ],
+    "rounds": {
+      "subjective": "Feeling fatigued, reports poor appetite over the past 3 days.",
+      "objective": "EKG normal sinus rhythm, no acute changes noted.",
+      "assessment": "Improving UTI, continue antibiotics, monitor intake/output.",
+      "plan": "Continue current meds, encourage ambulation, reassess tomorrow."
+    }
+  }
+]
