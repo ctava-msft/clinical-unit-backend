@@ -1,15 +1,15 @@
-name: clinicalrounds
+name: clinicalunit
 metadata:
-  template: clinicalrounds@0.0.1-beta
+  template: clinicalunit@0.0.1-beta
 services:
   api:
-    project: ../clinical-rounds-backend
+    project: ../clinical-unit-backend
     language: python
     host: containerapp
     docker:
       remoteBuild: true
   web:
-    project: ../clinical-rounds-frontend
+    project: ../clinical-unit-frontend
     language: js
     host: containerapp
     docker:

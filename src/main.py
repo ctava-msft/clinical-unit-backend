@@ -88,6 +88,9 @@ for var in cosmosdb_vars:
 # Initialize FastAPI application
 app = FastAPI()
 
+# Control whether we allow fallback to an in-memory/mock database
+REQUIRE_DATABASE = os.getenv("REQUIRE_DATABASE", "false").lower() in ("true", "1", "yes", "on")
+
 # Azure Cosmos DB configuration with better error handling
 try:
     database = os.getenv("COSMOSDB_DATABASE")
@@ -130,25 +133,25 @@ try:
 
 except Exception as e:
     print(f"✗ Error initializing Cosmos DB: {e}")
-    print("Using mock services for development...")
-    
-    # Mock services for development
+    if REQUIRE_DATABASE:
+        # Fail fast instead of silently using mock services
+        raise RuntimeError("Database initialization failed and REQUIRE_DATABASE is set. Aborting startup.") from e
+    print("Using mock services for development (set REQUIRE_DATABASE=1 to disable this fallback)...")
+
     class MockCosmosDBHelper:
         def get_patient(self, patient_id: str):
             return {"error": f"Database not configured. Patient {patient_id} not found."}
-        
+
         def save_patient_data(self, patient_id: str, patient_data: dict):
-            #print(f"Mock save: Patient {patient_id} data would be saved")
             return True
-    
+
     class MockSummarizer:
         def __init__(self, db_helper):
             self.cosmosDBHelper = db_helper
-        
+
         def summarize_patient(self, patient_id: str):
-            #print(f"Mock summarization for patient {patient_id}")
             return "Mock summary completed"
-    
+
     cosmosDBHelper = MockCosmosDBHelper()
     summarizer = MockSummarizer(cosmosDBHelper)
 

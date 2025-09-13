@@ -49,7 +49,7 @@ def load_patients_and_save_summaries(json_file_path: str, api_base_url: str = "h
     patient_endpoint = f"{api_base_url}/api/patient"
     successful_uploads = 0
     failed_uploads = 0
-    accepted_ids = []  # track IDs to verify
+    accepted_mrns = []  # track MRNs to verify
 
     # Prepare headers (include Authorization if token provided)
     base_headers = {'Content-Type': 'application/json'}
@@ -59,44 +59,45 @@ def load_patients_and_save_summaries(json_file_path: str, api_base_url: str = "h
     # Process each patient
     for i, patient in enumerate(patients_data):
         try:
-            # Extract patient_id from the new structure
-            patient_id = patient.get('id')
+            # Use MRN as the canonical identifier for persistence (backend key)
+            patient_mrn = patient.get('mrn')
+            patient_uuid = patient.get('id')  # optional UUID field in JSON
             patient_name = patient.get('name', 'Unknown')
-            
-            if not patient_id:
-                print(f"Warning: Patient {i+1} ({patient_name}) missing id, skipping...")
+
+            if not patient_mrn:
+                print(f"Warning: Patient {i+1} ({patient_name}) missing mrn, skipping...")
                 failed_uploads += 1
                 continue
-            
-            # Save complete patient data (includes mrn, visit_id, demographics, predictions, rounds, etc.)
+
+            if not patient_uuid:
+                print(f"Info: Patient {patient_mrn} has no 'id' field; using MRN only.")
+
+            # Payload is the full patient record (contains mrn already)
             payload = patient
-            
-            # Make the API call
+
             response = requests.post(
                 patient_endpoint,
                 json=payload,
                 headers=base_headers,
                 timeout=30
             )
-            
+
             if 200 <= response.status_code < 300:
-                print(f"✓ Successfully saved complete patient data for {patient_name} ({patient_id})")
+                # Try to detect mock DB (no real persistence) by an on-demand GET if verify flag later
+                print(f"✓ Saved data for {patient_name} (MRN={patient_mrn}, id={patient_uuid})")
                 successful_uploads += 1
-                if patient_id:
-                    accepted_ids.append(patient_id)
+                accepted_mrns.append(patient_mrn)
             else:
-                print(f"✗ Failed to save patient data for {patient_name} ({patient_id}): {response.status_code} - {response.text}")
+                print(f"✗ Failed save for {patient_name} (MRN={patient_mrn}): {response.status_code} - {response.text}")
                 failed_uploads += 1
-                
+
         except requests.exceptions.RequestException as e:
             patient_name = patient.get('name', 'unknown')
-            patient_id = patient.get('id', 'unknown')
-            print(f"✗ Network error for patient {patient_name} ({patient_id}): {e}")
+            print(f"✗ Network error for patient {patient_name} (MRN={patient.get('mrn','?')}): {e}")
             failed_uploads += 1
         except Exception as e:
             patient_name = patient.get('name', 'unknown')
-            patient_id = patient.get('id', 'unknown')
-            print(f"✗ Unexpected error for patient {patient_name} ({patient_id}): {e}")
+            print(f"✗ Unexpected error for patient {patient_name} (MRN={patient.get('mrn','?')}): {e}")
             failed_uploads += 1
     
     # Print summary
@@ -106,19 +107,22 @@ def load_patients_and_save_summaries(json_file_path: str, api_base_url: str = "h
     print(f"Total patients processed: {successful_uploads + failed_uploads}")
 
     # Optional verification pass
-    if verify and accepted_ids:
-        print("\nVerifying persistence of accepted uploads...")
+    if verify and accepted_mrns:
+        print("\nVerifying persistence of accepted uploads (by MRN)...")
         verified = 0
         missing = []
-        for pid in accepted_ids:
-            if _verify_patient_exists(api_base_url, pid, base_headers, verify_timeout, verify_interval):
+        for mrn in accepted_mrns:
+            if _verify_patient_exists(api_base_url, mrn, base_headers, verify_timeout, verify_interval):
                 verified += 1
             else:
-                missing.append(pid)
+                missing.append(mrn)
         print(f"\n--- Verification Summary ---")
-        print(f"Verified present: {verified}/{len(accepted_ids)}")
+        print(f"Verified present: {verified}/{len(accepted_mrns)}")
         if missing:
-            print(f"Not found after {verify_timeout}s (IDs): {', '.join(str(x) for x in missing)}")
+            print(f"Not found after {verify_timeout}s (MRNs): {', '.join(str(x) for x in missing)}")
+            # Heuristic: if everything missing, likely database not configured
+            if verified == 0:
+                print("\n⚠ All verification attempts failed. Possible causes:\n  - Cosmos DB environment variables not set (see README)\n  - Backend running in mock mode (check server logs for 'Database not configured')\n  - Using wrong API base URL")
 
 def _resolve_bearer_token(provided_token: Optional[str] = None) -> Optional[str]:
     """

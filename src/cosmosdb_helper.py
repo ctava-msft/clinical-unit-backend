@@ -24,24 +24,16 @@ class CosmosDBHelper:
         except pymongo.errors.ServerSelectionTimeoutError as e:
             raise ConnectionError(f"Failed to connect to Cosmos DB - timeout: {e}")
         except pymongo.errors.ConfigurationError as e:
-            # Handle wire version compatibility issues more gracefully
-            if "wire version" in str(e):
-                print(f"Warning: Wire version compatibility issue: {e}")
-                # Try with a more permissive client configuration
-                try:
-                    self.client = pymongo.MongoClient(
-                        connection_string,
-                        serverSelectionTimeoutMS=30000,
-                        retryWrites=False
-                    )
-                    mydb = self.client[database_name]
-                    self.collection = mydb[collection_name]
-                except Exception as retry_e:
-                    raise ConnectionError(f"Connection failed even with compatibility mode: {retry_e}")
-            else:
-                raise ConnectionError(f"Invalid connection configuration: {e}")
+            msg = str(e)
+            if "wire version" in msg:
+                guidance = (
+                    "Wire version mismatch. This likely means your Cosmos DB for Mongo API account is on an older compatibility level (e.g., 3.2/3.6). "
+                    "Options: (1) Pin pymongo to 3.13.x (supports older wire versions) OR (2) Provision/upgrade a Cosmos DB account using Mongo 4.2+ and keep latest pymongo."
+                )
+                raise ConnectionError(f"{msg} | {guidance}") from e
+            raise ConnectionError(f"Invalid connection configuration: {msg}") from e
         except Exception as e:
-            raise ConnectionError(f"Unexpected error connecting to Cosmos DB: {e}")
+            raise ConnectionError(f"Unexpected error connecting to Cosmos DB: {e}") from e
         
     def get_patient_info(self, patient_id: str) -> str:
         """
@@ -58,20 +50,16 @@ class CosmosDBHelper:
 
     # Get a patient from the database
     def get_patient(self, patient_id: str) -> dict:
-        """
-        Fetch complete patient object from CosmosDB given a patient_id (MRN).
-        Returns the patient document as a dict, or an error dict if not found.
+        """Fetch complete patient object.
+
+        Collection is sharded on `_id` (see Bicep). We store MRN as `_id` and also
+        retain a separate `mrn` field for readability. Always query by `_id` to
+        satisfy single-shard targeting requirements.
         """
         try:
-            # Include _id field in the returned document
-            doc = self.collection.find_one({"mrn": patient_id})
+            doc = self.collection.find_one({"_id": patient_id})
             if not doc:
                 return {"error": f"No patient found with MRN: {patient_id}"}
-            
-            # Convert ObjectId to string for JSON serialization
-            if "_id" in doc:
-                doc["_id"] = str(doc["_id"])
-            
             return doc
         except Exception as e:
             print(f"Error fetching patient {patient_id}: {e}")
@@ -81,21 +69,17 @@ class CosmosDBHelper:
         """Save complete patient data including demographics, predictions, and clinical rounds"""
         try:
             # Ensure the document has the correct structure for CosmosDB
-            document = {
-                "mrn": patient_id,  # Use mrn instead of id for consistency
-                **patient_data
-            }
+            # Ensure shard key (_id) present. Use MRN as canonical _id.
+            document = {**patient_data}
+            document["_id"] = patient_id
+            document["mrn"] = patient_id
             
             # Remove _id from patient_data if it exists to avoid conflicts
             if "_id" in document:
                 del document["_id"]
             
             # Update or insert the document using mrn field
-            self.collection.replace_one(
-                {"mrn": patient_id},
-                document,
-                upsert=True
-            )
+            self.collection.replace_one({"_id": patient_id}, document, upsert=True)
             return True
         except Exception as e:
             print(f"Error saving patient data: {e}")
