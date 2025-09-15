@@ -32,7 +32,9 @@ from urllib.parse import quote_plus
 import cosmosdb_helper
 import summarizer
 from auth_middleware import get_current_user, get_current_user_from_request, require_auth, get_user_from_request, extract_token_from_request
-from typing import Dict, Any
+from role_service import role_service
+from models import ClinicalRole, RoleInfo, AssignRoleRequest, UserRoleResponse
+from typing import Dict, Any, List
 
 # Task model for background processing
 class Task(BaseModel):
@@ -244,12 +246,13 @@ async def get_current_user_conditional(request: Request) -> Dict[str, Any]:
             return user
         else:
             # Return anonymous user for development
+            dev_user_id = "dev-user"
             return {
-                "user_id": "dev-user",
+                "user_id": dev_user_id,
                 "email": "dev@development.local",
                 "name": "Development User",
                 "tenant_id": "dev-tenant",
-                "roles": [],
+                "roles": role_service.get_user_roles(dev_user_id),  # Get roles from role service
                 "groups": []
             }
     else:
@@ -383,6 +386,144 @@ async def options_handler(path: str):
             "Access-Control-Allow-Headers": "*",
         }
     )
+
+# ============================================================================
+# Role Management Endpoints
+# ============================================================================
+
+@app.get("/api/roles", response_model=List[RoleInfo])
+async def get_all_roles():
+    """
+    Get all available clinical roles
+    
+    Returns:
+        List: All clinical roles with their descriptions and responsibilities
+    """
+    try:
+        roles = role_service.get_all_roles()
+        return roles
+    except Exception as e:
+        print(f"Error retrieving roles: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/roles/{role}", response_model=RoleInfo)
+async def get_role_info(role: ClinicalRole):
+    """
+    Get information for a specific clinical role
+    
+    Args:
+        role (ClinicalRole): The clinical role to get information for
+        
+    Returns:
+        RoleInfo: Detailed information about the role
+    """
+    try:
+        role_info = role_service.get_role_info(role)
+        if not role_info:
+            return JSONResponse(status_code=404, content={"error": f"Role {role} not found"})
+        return role_info
+    except Exception as e:
+        print(f"Error retrieving role info for {role}: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/user/roles", response_model=UserRoleResponse)
+async def get_current_user_roles(request: Request, current_user: Dict[str, Any] = Depends(get_current_user_conditional)):
+    """
+    Get the current user's role assignments
+    
+    Authentication is required in production, optional in development mode.
+    
+    Args:
+        request (Request): FastAPI request object
+        current_user (Dict): Authenticated user information
+        
+    Returns:
+        UserRoleResponse: User information with assigned roles
+    """
+    try:
+        user_id = current_user.get('user_id')
+        user_email = current_user.get('email', 'unknown')
+        user_name = current_user.get('name')
+        
+        # Get user's role information
+        user_role_info = role_service.get_user_role_info(user_id)
+        
+        return UserRoleResponse(
+            user_id=user_id,
+            email=user_email,
+            name=user_name,
+            roles=user_role_info
+        )
+    except Exception as e:
+        print(f"Error retrieving user roles: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/api/user/roles")
+async def assign_user_roles(request_body: AssignRoleRequest, request: Request, current_user: Dict[str, Any] = Depends(get_current_user_conditional)):
+    """
+    Assign roles to a user
+    
+    Authentication is required in production, optional in development mode.
+    Note: In a production system, this would require admin privileges.
+    
+    Args:
+        request_body (AssignRoleRequest): Role assignment request
+        request (Request): FastAPI request object
+        current_user (Dict): Authenticated user information
+        
+    Returns:
+        JSON: Success confirmation or error message
+    """
+    try:
+        # Log access for audit trail
+        user_email = current_user.get('email', 'unknown')
+        is_dev_user = user_email == 'dev@development.local'
+        mode_indicator = " [DEV MODE]" if is_dev_user else ""
+        print(f"Role assignment request - Assigner: {user_email}, Target User: {request_body.user_id}, Roles: {request_body.roles}{mode_indicator}")
+        
+        # Assign roles to the user
+        success = role_service.assign_roles_to_user(request_body.user_id, request_body.roles)
+        
+        if success:
+            return {"status": "roles assigned successfully", "user_id": request_body.user_id, "roles": request_body.roles}
+        else:
+            return JSONResponse(status_code=400, content={"error": "Failed to assign roles"})
+            
+    except ValueError as e:
+        print(f"Invalid role assignment: {str(e)}")
+        return JSONResponse(status_code=400, content={"error": str(e)})
+    except Exception as e:
+        print(f"Error assigning roles: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/user/{user_id}/roles", response_model=UserRoleResponse)
+async def get_user_roles_by_id(user_id: str, request: Request, current_user: Dict[str, Any] = Depends(get_current_user_conditional)):
+    """
+    Get role assignments for a specific user
+    
+    Authentication is required in production, optional in development mode.
+    
+    Args:
+        user_id (str): The user identifier to get roles for
+        request (Request): FastAPI request object
+        current_user (Dict): Authenticated user information
+        
+    Returns:
+        UserRoleResponse: User information with assigned roles
+    """
+    try:
+        # Get user's role information
+        user_role_info = role_service.get_user_role_info(user_id)
+        
+        return UserRoleResponse(
+            user_id=user_id,
+            email="",  # Email not available when querying by user_id
+            name=None,
+            roles=user_role_info
+        )
+    except Exception as e:
+        print(f"Error retrieving roles for user {user_id}: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 # OpenTelemetry instrumentation setup
 # TODO: fix open telemetry so it doesn't slow app so much

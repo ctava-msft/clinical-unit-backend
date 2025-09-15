@@ -1,6 +1,46 @@
 ### Health Check (No Auth Required)
 GET http://127.0.0.1:8000/
 
+### Get All Clinical Roles (No Auth Required)
+GET http://127.0.0.1:8000/api/roles
+
+### Get Specific Role Information (No Auth Required)
+GET http://127.0.0.1:8000/api/roles/physician
+
+### Get Nurse Role Information (No Auth Required)
+GET http://127.0.0.1:8000/api/roles/nurse
+
+### Get Case Manager Role Information (No Auth Required)
+GET http://127.0.0.1:8000/api/roles/case_manager
+
+### Get Current User Roles (Requires Auth) - Replace with actual token
+GET http://127.0.0.1:8000/api/user/roles
+Authorization: Bearer <redacted>
+
+### Assign Roles to User (Requires Auth) - Replace with actual token
+POST http://127.0.0.1:8000/api/user/roles
+Content-Type: application/json
+Authorization: Bearer <redacted>
+
+{
+    "user_id": "user123",
+    "roles": ["physician", "nurse"]
+}
+
+### Get User Roles by ID (Requires Auth) - Replace with actual token
+GET http://127.0.0.1:8000/api/user/user123/roles
+Authorization: Bearer <redacted>
+
+### Assign Case Manager Role (Requires Auth) - Replace with actual token
+POST http://127.0.0.1:8000/api/user/roles
+Content-Type: application/json
+Authorization: Bearer <redacted>
+
+{
+    "user_id": "case-manager-user",
+    "roles": ["case_manager"]
+}
+
 ### Get Patient (Requires Auth) - Replace with actual token
 GET http://127.0.0.1:8000/api/patient/P002
 Authorization: Bearer <redacted>
@@ -25,6 +65,12 @@ Authorization: Bearer <redacted>
 {
     "patient_id": "P010"
 }
+
+### Test Role Endpoints without Auth (Should work for role info, fail for user operations)
+GET http://127.0.0.1:8000/api/roles
+
+### Test User Role Operations without Auth (Should return 401 in production)
+GET http://127.0.0.1:8000/api/user/roles
 
 ### Test without Auth (Should return 401)
 GET http://127.0.0.1:8000/api/patient/P001
@@ -51,6 +97,15 @@ Content-Type: application/json
 ### Test with Invalid Token (Should return 401)
 GET http://127.0.0.1:8000/api/patient/P001
 Authorization: Bearer invalid_token_here
+
+### Test Invalid Role Assignment
+POST http://127.0.0.1:8000/api/user/roles
+Content-Type: application/json
+
+{
+    "user_id": "invalid-test",
+    "roles": ["invalid_role"]
+}
 
 ### Instructions for getting JWT token:
 ### 

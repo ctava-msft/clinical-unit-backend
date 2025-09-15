@@ -164,6 +164,43 @@ The Clinical Rounds App provides the following REST API endpoints:
   - Returns a simple health check message
   - Response: `{"message": "Hello World"}`
 
+### Role Management
+
+#### Get All Clinical Roles
+- **GET** `/api/roles`
+  - Retrieves all available clinical roles with their descriptions and responsibilities
+  - No authentication required
+  - Response: Array of role objects with role, display_name, description, and responsibilities
+
+#### Get Specific Role Information
+- **GET** `/api/roles/{role}`
+  - Retrieves detailed information for a specific clinical role
+  - Parameters:
+    - `role` (path parameter): The role identifier (physician, nurse, case_manager)
+  - No authentication required
+  - Response: Role object with detailed information
+
+#### Get Current User's Roles
+- **GET** `/api/user/roles`
+  - Retrieves role assignments for the authenticated user
+  - Authentication required (optional in development mode)
+  - Response: User information with assigned role details
+
+#### Assign Roles to User
+- **POST** `/api/user/roles`
+  - Assigns clinical roles to a user
+  - Authentication required (optional in development mode)
+  - Request Body: `{"user_id": "string", "roles": ["physician", "nurse", "case_manager"]}`
+  - Response: Success confirmation with assigned roles
+
+#### Get User Roles by ID
+- **GET** `/api/user/{user_id}/roles`
+  - Retrieves role assignments for a specific user
+  - Parameters:
+    - `user_id` (path parameter): The user identifier
+  - Authentication required (optional in development mode)
+  - Response: User information with assigned role details
+
 ### Patient Management
 
 #### Get Patient Data
@@ -195,9 +232,52 @@ The Clinical Rounds App provides the following REST API endpoints:
   - Status Code: `202`: Accepted for processing
   - Note: This is an asynchronous operation that runs in the background
 
+### Clinical Roles
+
+The system supports three clinical roles:
+
+1. **Physician** (`physician`)
+   - Leads patient care decisions
+   - Manages life-support systems
+   - Coordinates treatment plans
+   - Prescribes medications
+   - Performs medical procedures
+   - Consults with specialists
+
+2. **Registered Nurse (RN)** (`nurse`)
+   - Provides direct patient care
+   - Monitors vital signs
+   - Administers medications
+   - Performs frequent patient assessments
+   - Documents patient status
+   - Coordinates with healthcare team
+
+3. **Case Manager** (`case_manager`)
+   - Coordinates discharge planning
+   - Manages patient support services
+   - Facilitates care transitions
+   - Connects patients with resources
+   - Monitors patient outcomes
+   - Communicates with insurance providers
+
 ### Example Usage
 
 ```bash
+# Get all available roles
+curl -X GET "http://localhost:8000/api/roles"
+
+# Get specific role information
+curl -X GET "http://localhost:8000/api/roles/physician"
+
+# Assign roles to a user
+curl -X POST "http://localhost:8000/api/user/roles" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user123", "roles": ["physician", "nurse"]}'
+
+# Get current user roles (with authentication)
+curl -X GET "http://localhost:8000/api/user/roles" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
 # Get patient data
 curl -X GET "http://localhost:8000/api/patient/12345"
 
