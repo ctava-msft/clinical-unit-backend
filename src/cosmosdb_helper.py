@@ -1,5 +1,6 @@
 import pymongo
 import json
+import time
 from bson import ObjectId
 
 class CosmosDBHelper:
@@ -21,6 +22,8 @@ class CosmosDBHelper:
             self.client.admin.command('ping')
             mydb = self.client[database_name]
             self.collection = mydb[collection_name]
+            # Initialize user collection for role assignments
+            self.user_collection = mydb["users"]
         except pymongo.errors.ServerSelectionTimeoutError as e:
             raise ConnectionError(f"Failed to connect to Cosmos DB - timeout: {e}")
         except pymongo.errors.ConfigurationError as e:
@@ -84,3 +87,84 @@ class CosmosDBHelper:
         except Exception as e:
             print(f"Error saving patient data: {e}")
             raise
+
+    def save_user_roles(self, user_id: str, roles: list) -> bool:
+        """
+        Save user role assignments to the user collection
+        
+        Args:
+            user_id (str): The user identifier
+            roles (list): List of role strings assigned to the user
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            user_document = {
+                "_id": user_id,
+                "user_id": user_id,
+                "roles": roles,
+                "updated_at": json.dumps({"$date": {"$numberLong": str(int(time.time() * 1000))}})
+            }
+            
+            # Update or insert the user document
+            self.user_collection.replace_one({"_id": user_id}, user_document, upsert=True)
+            return True
+        except Exception as e:
+            print(f"Error saving user roles for {user_id}: {e}")
+            raise
+
+    def get_user_roles(self, user_id: str) -> list:
+        """
+        Get user role assignments from the user collection
+        
+        Args:
+            user_id (str): The user identifier
+            
+        Returns:
+            list: List of role strings assigned to the user (empty list if no roles)
+        """
+        try:
+            user_doc = self.user_collection.find_one({"_id": user_id}, {"_id": 0, "roles": 1})
+            if user_doc and "roles" in user_doc:
+                return user_doc["roles"]
+            return []  # Return empty list if user not found or no roles
+        except Exception as e:
+            print(f"Error fetching user roles for {user_id}: {e}")
+            return []  # Return empty list on error to allow system to function
+
+    def get_user(self, user_id: str) -> dict:
+        """
+        Get complete user document from the user collection
+        
+        Args:
+            user_id (str): The user identifier
+            
+        Returns:
+            dict: User document or empty dict if not found
+        """
+        try:
+            user_doc = self.user_collection.find_one({"_id": user_id})
+            if user_doc:
+                return user_doc
+            return {}
+        except Exception as e:
+            print(f"Error fetching user {user_id}: {e}")
+            return {}
+
+    def remove_user_roles(self, user_id: str) -> bool:
+        """
+        Remove all role assignments for a user
+        
+        Args:
+            user_id (str): The user identifier
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            result = self.user_collection.delete_one({"_id": user_id})
+            return True  # Return True even if document didn't exist
+        except Exception as e:
+            print(f"Error removing user roles for {user_id}: {e}")
+            return False
