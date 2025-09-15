@@ -15,11 +15,16 @@ class RoleService:
     Service for managing clinical roles and user role assignments
     """
     
-    def __init__(self):
-        """Initialize the role service with predefined clinical roles"""
+    def __init__(self, cosmosdb_helper=None):
+        """
+        Initialize the role service with predefined clinical roles
+        
+        Args:
+            cosmosdb_helper: Optional CosmosDB helper for persistent storage
+        """
         self._role_definitions = self._initialize_role_definitions()
-        # In a real system, this would be stored in a database
-        # For now, we'll use in-memory storage for development
+        self._cosmosdb_helper = cosmosdb_helper
+        # Fallback to in-memory storage if no database helper provided
         self._user_roles: Dict[str, List[ClinicalRole]] = {}
     
     def _initialize_role_definitions(self) -> Dict[ClinicalRole, RoleInfo]:
@@ -108,8 +113,22 @@ class RoleService:
             if role not in self._role_definitions:
                 raise ValueError(f"Invalid role: {role}")
         
-        self._user_roles[user_id] = roles
-        return True
+        # Convert role enums to strings for storage
+        role_strings = [role.value for role in roles]
+        
+        if self._cosmosdb_helper:
+            # Use database storage
+            try:
+                return self._cosmosdb_helper.save_user_roles(user_id, role_strings)
+            except Exception as e:
+                print(f"Database error, falling back to in-memory storage: {e}")
+                # Fall back to in-memory storage on database error
+                self._user_roles[user_id] = roles
+                return True
+        else:
+            # Use in-memory storage
+            self._user_roles[user_id] = roles
+            return True
     
     def get_user_roles(self, user_id: str) -> List[ClinicalRole]:
         """
@@ -119,9 +138,28 @@ class RoleService:
             user_id: The user identifier
             
         Returns:
-            List of roles assigned to the user
+            List of roles assigned to the user (empty list if no roles)
         """
-        return self._user_roles.get(user_id, [])
+        if self._cosmosdb_helper:
+            # Use database storage
+            try:
+                role_strings = self._cosmosdb_helper.get_user_roles(user_id)
+                # Convert string roles back to enums, skip invalid ones
+                roles = []
+                for role_str in role_strings:
+                    try:
+                        roles.append(ClinicalRole(role_str))
+                    except ValueError:
+                        print(f"Warning: Invalid role '{role_str}' found for user {user_id}")
+                        continue
+                return roles
+            except Exception as e:
+                print(f"Database error, falling back to in-memory storage: {e}")
+                # Fall back to in-memory storage on database error
+                return self._user_roles.get(user_id, [])
+        else:
+            # Use in-memory storage
+            return self._user_roles.get(user_id, [])
     
     def get_user_role_info(self, user_id: str) -> List[RoleInfo]:
         """
@@ -174,10 +212,23 @@ class RoleService:
         Returns:
             True if removal was successful
         """
-        if user_id in self._user_roles:
-            del self._user_roles[user_id]
-        return True
+        if self._cosmosdb_helper:
+            # Use database storage
+            try:
+                return self._cosmosdb_helper.remove_user_roles(user_id)
+            except Exception as e:
+                print(f"Database error, falling back to in-memory storage: {e}")
+                # Fall back to in-memory storage on database error
+                if user_id in self._user_roles:
+                    del self._user_roles[user_id]
+                return True
+        else:
+            # Use in-memory storage
+            if user_id in self._user_roles:
+                del self._user_roles[user_id]
+            return True
 
 
 # Global role service instance
-role_service = RoleService()
+# Will be initialized with cosmosdb_helper after it's created
+role_service = None

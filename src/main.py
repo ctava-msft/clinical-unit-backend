@@ -32,7 +32,7 @@ from urllib.parse import quote_plus
 import cosmosdb_helper
 import summarizer
 from auth_middleware import get_current_user, get_current_user_from_request, require_auth, get_user_from_request, extract_token_from_request
-from role_service import role_service
+from role_service import RoleService
 from models import ClinicalRole, RoleInfo, AssignRoleRequest, UserRoleResponse
 from typing import Dict, Any, List
 
@@ -131,7 +131,10 @@ try:
     # Initialize AI summarizer with database helper
     summarizer = summarizer.Summarizer(cosmosDBHelper)
     
-    print("✓ Successfully initialized Cosmos DB and Summarizer")
+    # Initialize role service with database helper
+    role_service = RoleService(cosmosDBHelper)
+    
+    print("✓ Successfully initialized Cosmos DB, Summarizer, and Role Service")
 
 except Exception as e:
     print(f"✗ Error initializing Cosmos DB: {e}")
@@ -141,10 +144,26 @@ except Exception as e:
     print("Using mock services for development (set REQUIRE_DATABASE=1 to disable this fallback)...")
 
     class MockCosmosDBHelper:
+        def __init__(self):
+            # In-memory storage for mock database
+            self._user_roles = {}
+            
         def get_patient(self, patient_id: str):
             return {"error": f"Database not configured. Patient {patient_id} not found."}
 
         def save_patient_data(self, patient_id: str, patient_data: dict):
+            return True
+
+        def save_user_roles(self, user_id: str, roles: list) -> bool:
+            self._user_roles[user_id] = roles
+            return True
+
+        def get_user_roles(self, user_id: str) -> list:
+            return self._user_roles.get(user_id, [])
+
+        def remove_user_roles(self, user_id: str) -> bool:
+            if user_id in self._user_roles:
+                del self._user_roles[user_id]
             return True
 
     class MockSummarizer:
@@ -156,6 +175,9 @@ except Exception as e:
 
     cosmosDBHelper = MockCosmosDBHelper()
     summarizer = MockSummarizer(cosmosDBHelper)
+    
+    # Initialize role service with mock database helper
+    role_service = RoleService(cosmosDBHelper)
 
 # Get environment-specific configuration
 code_space = os.getenv("CODESPACE_NAME")
