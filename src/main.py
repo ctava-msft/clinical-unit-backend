@@ -32,7 +32,8 @@ from urllib.parse import quote_plus
 import cosmosdb_helper
 import summarizer
 from auth_middleware import get_current_user, get_current_user_from_request, require_auth, get_user_from_request, extract_token_from_request
-from typing import Dict, Any
+from diagnostic_orchestrator import DiagnosticOrchestrator, CaseExecutionSession, ActionType, ExecutionTrace
+from typing import Dict, Any, List, Optional
 
 # Task model for background processing
 class Task(BaseModel):
@@ -129,6 +130,14 @@ try:
     # Initialize AI summarizer with database helper
     summarizer = summarizer.Summarizer(cosmosDBHelper)
     
+    # Initialize diagnostic orchestrator
+    try:
+        diagnostic_orchestrator = DiagnosticOrchestrator()
+        print("✓ Successfully initialized Diagnostic Orchestrator")
+    except Exception as e:
+        print(f"⚠ Warning: Could not initialize Diagnostic Orchestrator: {e}")
+        diagnostic_orchestrator = None
+    
     print("✓ Successfully initialized Cosmos DB and Summarizer")
 
 except Exception as e:
@@ -154,6 +163,10 @@ except Exception as e:
 
     cosmosDBHelper = MockCosmosDBHelper()
     summarizer = MockSummarizer(cosmosDBHelper)
+    
+    # Mock diagnostic orchestrator for development
+    diagnostic_orchestrator = None
+    print("⚠ Using mock services - diagnostic orchestrator disabled")
 
 # Get environment-specific configuration
 code_space = os.getenv("CODESPACE_NAME")
@@ -329,6 +342,19 @@ async def save_patient_data(patient_data: dict, request: Request, current_user: 
 class PatientRequest(BaseModel):
     patient_id: str
 
+# Request models for diagnostic orchestration
+class DiagnosticCaseRequest(BaseModel):
+    case_info: str
+    max_rounds: int = 10
+    budget_limit: Optional[float] = None
+    execution_mode: str = "unconstrained"  # "instant", "questions_only", "budgeted", "unconstrained", "ensemble"
+
+class DiagnosticCaseResponse(BaseModel):
+    case_id: str
+    session_id: str
+    status: str
+    message: str
+
 # Background task function for AI summarization
 def summarize(patient_id: str):
     """
@@ -369,6 +395,199 @@ async def review(request_body: PatientRequest, background_tasks: BackgroundTasks
         return JSONResponse(content={"detail": "Accepted for processing"}, status_code=202)
     except Exception as e:
         print(f"Error in summarization request: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# Diagnostic Orchestration endpoints
+@app.post("/api/diagnostic/case", response_model=DiagnosticCaseResponse)
+async def run_diagnostic_case(
+    request_body: DiagnosticCaseRequest, 
+    request: Request, 
+    current_user: Dict[str, Any] = Depends(get_current_user_conditional)
+):
+    """
+    Execute a diagnostic case using the MAI-DxO multi-agent orchestrator
+    
+    This endpoint runs the full diagnostic orchestration process with specialized agents:
+    - Dr. Hypothesis: Maintains differential diagnosis with Bayesian updates
+    - Dr. Test-Chooser: Selects discriminative diagnostic tests
+    - Dr. Challenger: Acts as devil's advocate, prevents anchoring bias
+    - Dr. Stewardship: Enforces cost-conscious care
+    - Dr. Checklist: Performs quality control and consistency checks
+    
+    Args:
+        request_body: Case information and execution parameters
+        request: FastAPI request object
+        current_user: Authenticated user information
+        
+    Returns:
+        DiagnosticCaseResponse with case execution details
+    """
+    if not diagnostic_orchestrator:
+        return JSONResponse(
+            status_code=503, 
+            content={"error": "Diagnostic orchestrator not available. Check Azure OpenAI configuration."}
+        )
+    
+    try:
+        # Log access for audit trail
+        user_email = current_user.get('email', 'unknown')
+        is_dev_user = user_email == 'dev@development.local'
+        mode_indicator = " [DEV MODE]" if is_dev_user else ""
+        print(f"Diagnostic orchestration request - User: {user_email}{mode_indicator}")
+        
+        # Execute diagnostic case
+        session = await diagnostic_orchestrator.run_diagnostic_case(
+            case_info=request_body.case_info,
+            max_rounds=request_body.max_rounds,
+            budget_limit=request_body.budget_limit,
+            execution_mode=request_body.execution_mode
+        )
+        
+        return DiagnosticCaseResponse(
+            case_id=session.case_id,
+            session_id=session.session_id,
+            status="completed",
+            message=f"Diagnostic case completed. Final diagnosis: {session.final_diagnosis or 'No diagnosis reached'}"
+        )
+        
+    except Exception as e:
+        print(f"Error in diagnostic orchestration: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/diagnostic/case/{case_id}/summary")
+async def get_diagnostic_case_summary(
+    case_id: str, 
+    request: Request, 
+    current_user: Dict[str, Any] = Depends(get_current_user_conditional)
+):
+    """
+    Get a summary of a completed diagnostic case
+    
+    Args:
+        case_id: Unique identifier for the diagnostic case
+        request: FastAPI request object
+        current_user: Authenticated user information
+        
+    Returns:
+        JSON summary of the diagnostic session
+    """
+    if not diagnostic_orchestrator:
+        return JSONResponse(
+            status_code=503, 
+            content={"error": "Diagnostic orchestrator not available"}
+        )
+    
+    try:
+        summary = diagnostic_orchestrator.get_session_summary(case_id)
+        if not summary:
+            return JSONResponse(status_code=404, content={"error": "Case not found"})
+        
+        return summary
+        
+    except Exception as e:
+        print(f"Error retrieving case summary: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/diagnostic/case/{case_id}/traces")
+async def get_diagnostic_case_traces(
+    case_id: str, 
+    request: Request, 
+    current_user: Dict[str, Any] = Depends(get_current_user_conditional)
+):
+    """
+    Get detailed execution traces for a diagnostic case
+    
+    Returns step-by-step traces of the decision-making process with actor labels,
+    agent communications, debates, and reasoning chains.
+    
+    Args:
+        case_id: Unique identifier for the diagnostic case
+        request: FastAPI request object
+        current_user: Authenticated user information
+        
+    Returns:
+        JSON array of execution traces with timestamps and actor information
+    """
+    if not diagnostic_orchestrator:
+        return JSONResponse(
+            status_code=503, 
+            content={"error": "Diagnostic orchestrator not available"}
+        )
+    
+    try:
+        traces = diagnostic_orchestrator.get_session_traces(case_id)
+        if not traces:
+            return JSONResponse(status_code=404, content={"error": "Case not found or no traces available"})
+        
+        # Convert traces to JSON-serializable format
+        trace_data = []
+        for trace in traces:
+            trace_dict = {
+                "case_id": trace.case_id,
+                "session_id": trace.session_id,
+                "timestamp": trace.timestamp.isoformat(),
+                "round_number": trace.round_number,
+                "action_type": trace.action_type.value,
+                "actor": trace.actor,
+                "content": trace.content,
+                "structured_data": trace.structured_data,
+                "cost_impact": trace.cost_impact
+            }
+            trace_data.append(trace_dict)
+        
+        return {"traces": trace_data, "total_traces": len(trace_data)}
+        
+    except Exception as e:
+        print(f"Error retrieving case traces: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/api/diagnostic/case/{case_id}/agent-messages")
+async def get_diagnostic_agent_messages(
+    case_id: str, 
+    request: Request, 
+    current_user: Dict[str, Any] = Depends(get_current_user_conditional)
+):
+    """
+    Get agent communication messages for a diagnostic case
+    
+    Returns detailed messages between the specialized diagnostic agents during
+    the chain-of-debate process.
+    
+    Args:
+        case_id: Unique identifier for the diagnostic case
+        request: FastAPI request object  
+        current_user: Authenticated user information
+        
+    Returns:
+        JSON array of agent messages with roles and structured data
+    """
+    if not diagnostic_orchestrator:
+        return JSONResponse(
+            status_code=503, 
+            content={"error": "Diagnostic orchestrator not available"}
+        )
+    
+    try:
+        session = diagnostic_orchestrator.active_sessions.get(case_id)
+        if not session:
+            return JSONResponse(status_code=404, content={"error": "Case session not found"})
+        
+        # Convert agent messages to JSON-serializable format
+        messages_data = []
+        for message in session.agent_messages:
+            message_dict = {
+                "agent_role": message.agent_role,
+                "timestamp": message.timestamp.isoformat(),
+                "message_type": message.message_type,
+                "content": message.content,
+                "structured_data": message.structured_data
+            }
+            messages_data.append(message_dict)
+        
+        return {"messages": messages_data, "total_messages": len(messages_data)}
+        
+    except Exception as e:
+        print(f"Error retrieving agent messages: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # Add a simple CORS preflight handler
