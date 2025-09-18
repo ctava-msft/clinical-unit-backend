@@ -79,6 +79,12 @@ Initial Case → Panel Deliberation
   - Ensures every diagnostic case reaches a conclusion
 - Budget constraints can terminate early with forced diagnosis
 
+**Important Process Notes:**
+- Currently, if "Ask Questions" or "Order Tests" is the determined round-end action, the responses to the asked questions or ordered tests are **fully simulated** to little to no meaningful responses. 
+  - No new information is generated or supplied. This is intentional, to avoid accidentally misdirecting the diagnotic panel if we can't actually get more patient information or administer the tests ordered.
+  - This definitely affects the ability for the diagnostic AI Agent panel to make optimal decisions and progress towards diagnosis.
+  - In the future, the responses could be better simulated to provide actionable responses, or allow human interaction to supply the responses (more desirable)
+
 ## 📁 File Structure
 
 ```
