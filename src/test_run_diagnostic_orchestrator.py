@@ -360,10 +360,10 @@ async def run_real_test_case():
         
         # Run different execution modes
         modes_to_test = [
-            ("instant", "Instant diagnosis from vignette only")
-            # ("questions_only", "Questions only, no diagnostic tests"),
-            # ("budgeted", "Full orchestration with $2000 budget"),
-            # ("unconstrained", "Full orchestration, no budget limits")
+            ("instant", "Instant diagnosis from vignette only"),
+            ("questions_only", "Questions only, no diagnostic tests"),
+            # ("budgeted", "Full orchestration with $2000 budget"), # Mode not fully implemented
+            ("unconstrained", "Full orchestration, no budget limits")
         ]
         
         for mode, description in modes_to_test:
