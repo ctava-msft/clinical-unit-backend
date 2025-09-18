@@ -1,5 +1,5 @@
 """
-MAI Diagnostic Orchestrator (MAI-DxO)
+Diagnostic Orchestrator
 
 Implementation of the diagnostic orchestrator pattern from the Microsoft AI research paper,
 featuring multi-agent coordination for clinical diagnosis with role-specialized reasoning agents.
@@ -9,7 +9,6 @@ This module provides:
 - Chain of debate coordination between agents
 - Comprehensive execution tracing and decision logging
 - Cost-aware diagnostic planning
-- Integration with Azure AI Foundry and Semantic Kernel patterns
 """
 
 import os
