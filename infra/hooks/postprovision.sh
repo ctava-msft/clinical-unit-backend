@@ -11,9 +11,9 @@ openAiService=$AZURE_OPENAI_NAME
 subscriptionId=$AZURE_SUBSCRIPTION_ID
 
 # Ensure all required environment variables are set
-if [ -z "$resourceGroupName" ] || [ -z "$searchService" ] || [ -z "$openAiService" ] || [ -z "$subscriptionId" ]; then
+if [ -z "$resourceGroupName" ] || [ -z "$openAiService" ] || [ -z "$subscriptionId" ]; then
     echo "One or more required environment variables are not set."
-    echo "Ensure that AZURE_RESOURCE_GROUP, AZURE_SEARCH_NAME, AZURE_OPENAI_NAME, AZURE_SUBSCRIPTION_ID are set."
+    echo "Ensure that AZURE_RESOURCE_GROUP, AZURE_OPENAI_NAME, AZURE_SUBSCRIPTION_ID are set."
     exit 1
 fi
 

@@ -12,9 +12,9 @@ $openAiService = $env:AZURE_OPENAI_NAME
 $subscriptionId = $env:AZURE_SUBSCRIPTION_ID
 
 # Ensure all required environment variables are set
-if ([string]::IsNullOrEmpty($resourceGroupName) -or [string]::IsNullOrEmpty($searchService) -or [string]::IsNullOrEmpty($openAiService) -or [string]::IsNullOrEmpty($subscriptionId)) {
+if ([string]::IsNullOrEmpty($resourceGroupName) -or [string]::IsNullOrEmpty($openAiService) -or [string]::IsNullOrEmpty($subscriptionId)) {
     Write-Host "One or more required environment variables are not set."
-    Write-Host "Ensure that AZURE_RESOURCE_GROUP, AZURE_SEARCH_NAME, AZURE_OPENAI_NAME, AZURE_SUBSCRIPTION_ID are set."
+    Write-Host "Ensure that AZURE_RESOURCE_GROUP, AZURE_OPENAI_NAME, AZURE_SUBSCRIPTION_ID are set."
     exit 1
 }
 

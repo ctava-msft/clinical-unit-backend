@@ -25,18 +25,20 @@ from pathlib import Path
 from pydantic import BaseModel
 import openai
 from openai import AsyncOpenAI
+# from dotenv import load_dotenv
+
+# Load environment variables
+# load_dotenv()
 
 # Import cost estimation capabilities
 from cost_estimator import cost_estimator, TestCost
 
 # Trace and execution models
 class ActionType(str, Enum):
-    """Types of actions the diagnostic panel can take"""
+    """Types of actions the diagnostic panel can take after deliberation"""
     ASK_QUESTIONS = "ask_questions"
     ORDER_TESTS = "order_tests" 
     MAKE_DIAGNOSIS = "make_diagnosis"
-    INTERNAL_DEBATE = "internal_debate"
-    COST_ESTIMATION = "cost_estimation"
 
 @dataclass
 class DiagnosticHypothesis:
@@ -135,7 +137,7 @@ class BaseSpecializedAgent:
     def __init__(self, role_name: str, client: AsyncOpenAI):
         self.role_name = role_name
         self.client = client
-        self.model = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o")
+        self.model = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4")
         
     async def _call_llm(self, system_prompt: str, user_message: str, 
                        temperature: float = 0.7) -> str:
@@ -459,46 +461,43 @@ class DrChecklist(BaseSpecializedAgent):
         
     async def contribute(self, case_info: str, previous_findings: List[str], 
                         current_hypotheses: List[DiagnosticHypothesis],
-                        session: CaseExecutionSession,
-                        proposed_actions: Dict[str, Any] = None) -> Dict[str, Any]:
+                        session: CaseExecutionSession) -> Dict[str, Any]:
         
         system_prompt = """You are Dr. Checklist, the quality control specialist ensuring systematic and thorough care.
 
 Your role:
-1. Validate that test names are specific and orderable
-2. Check for internal consistency across agent recommendations
-3. Ensure systematic approach to diagnosis
-4. Flag any logical inconsistencies or gaps
-5. Verify completeness of workup
+1. Assess completeness of current diagnostic workup
+2. Identify missing critical information or assessments
+3. Evaluate systematic approach to diagnosis
+4. Flag any logical inconsistencies or gaps in reasoning
+5. Provide quality assessment of current diagnostic process
 
 Format your response as JSON:
 {
-    "validation_results": [
-        {
-            "item": "item being validated",
-            "status": "valid / invalid / needs clarification",
-            "issue": "description of any problems",
-            "recommendation": "how to fix issues"
-        }
-    ],
-    "consistency_check": "assessment of internal logic consistency",
-    "completeness_assessment": "gaps in current diagnostic approach",
+    "missing_info": ["list of missing critical information"],
+    "systematic_gaps": ["gaps in systematic approach"],
+    "quality_concerns": ["any quality issues identified"],
+    "recommended_next_steps": ["suggested next diagnostic steps"],
+    "completeness_assessment": "overall assessment of diagnostic completeness",
     "quality_score": 1-10
 }"""
 
-        actions_text = json.dumps(proposed_actions, indent=2) if proposed_actions else "No actions proposed."
-        hypotheses_summary = "\n".join([f"- {h.condition} ({h.probability:.2f})" for h in current_hypotheses]) if current_hypotheses else "No hypotheses."
+        hypotheses_summary = "\n".join([f"- {h.condition} ({h.probability:.2f}): {h.reasoning}" for h in current_hypotheses]) if current_hypotheses else "No hypotheses available."
+        findings_text = "\n".join(previous_findings) if previous_findings else "No additional findings yet."
         
         user_message = f"""
 Case: {case_info}
 
-Proposed Actions:
-{actions_text}
-
 Current Hypotheses:
 {hypotheses_summary}
 
-Perform quality control validation on the proposed diagnostic approach.
+Accumulated Findings:
+{findings_text}
+
+Current Round: {session.current_round}
+Total Cost So Far: ${session.total_cost:.2f}
+
+Perform quality control assessment of the current diagnostic approach and identify any gaps or concerns.
 """
 
         response = await self._call_llm(system_prompt, user_message)
@@ -513,11 +512,180 @@ Perform quality control validation on the proposed diagnostic approach.
             pass
             
         return {
-            "validation_results": [],
-            "consistency_check": response,
-            "completeness_assessment": "Assessment pending",
+            "missing_info": [],
+            "systematic_gaps": [],
+            "quality_concerns": [],
+            "recommended_next_steps": [],
+            "completeness_assessment": response,
             "quality_score": 5
         }
+
+class ConsensusCoordinator(BaseSpecializedAgent):
+    """
+    Consensus Coordinator - Synthesizes all panel recommendations into a single consensus decision
+    """
+    
+    def __init__(self, client: AsyncOpenAI):
+        super().__init__("Consensus Coordinator", client)
+        
+    async def synthesize_consensus(self, case_info: str, previous_findings: List[str],
+                                 session: CaseExecutionSession,
+                                 panel_contributions: Dict[str, Any], 
+                                 max_rounds: int = 10) -> Dict[str, Any]:
+        
+        # Check if this is the final round
+        is_final_round = session.current_round >= max_rounds
+        
+        system_prompt = f"""You are the Consensus Coordinator, responsible for synthesizing the diagnostic panel's recommendations into a single consensus decision.
+
+Your role:
+1. Review all panel member contributions (Dr. Hypothesis, Dr. Test-Chooser, Dr. Challenger, Dr. Stewardship, Dr. Checklist)
+2. Weigh the evidence and recommendations from each specialist
+3. Make a consensus decision on the next action to take
+4. Provide clear reasoning for the chosen action
+
+You must choose exactly ONE of these three actions:
+- ask_questions: When more clinical information is needed
+- order_tests: When diagnostic tests will help differentiate hypotheses
+- make_diagnosis: When confidence is sufficient for diagnosis
+
+Decision Guidelines:
+- Make Diagnosis: When diagnostic confidence is sufficiently high (≥85%)
+- Order Tests: When tests can meaningfully differentiate between top hypotheses
+- Ask Questions: When additional clinical information could be of high value to clarify or refine hypotheses
+
+CRITICAL: {"This is the FINAL ROUND. You MUST make a diagnosis based on the best available information, regardless of confidence level. Provide the most likely diagnosis with clear reasoning about the diagnostic process and available evidence." if is_final_round else ""}
+
+Format your response as JSON:
+{{
+    "consensus_action": "ask_questions | order_tests | make_diagnosis",
+    "action_content": {{
+        "questions": ["question1", "question2"] OR
+        "tests": ["test1", "test2"] OR 
+        "diagnosis": "final diagnosis",
+        "confidence": 0.XX
+    }},
+    "reasoning": "detailed explanation of why this action was chosen{"; If this is the FINAL ROUND and the diagnosis decision is made because of it, make that clear." if is_final_round else ""}",
+    "panel_synthesis": "how you weighed different panel member inputs",
+    "confidence_assessment": "assessment of current diagnostic confidence"
+}}"""
+
+        # Extract key information from panel contributions
+        hypothesis_data = panel_contributions.get("hypothesis", {})
+        test_data = panel_contributions.get("tests", {})
+        challenge_data = panel_contributions.get("challenges", {})
+        stewardship_data = panel_contributions.get("stewardship", {})
+        checklist_data = panel_contributions.get("checklist", {})
+        
+        # Format panel contributions for the LLM
+        panel_summary = f"""
+=== Dr. Hypothesis Assessment ===
+{json.dumps(hypothesis_data, indent=2)}
+
+=== Dr. Test-Chooser Recommendations ===
+{json.dumps(test_data, indent=2)}
+
+=== Dr. Challenger Analysis ===
+{json.dumps(challenge_data, indent=2)}
+
+=== Dr. Stewardship Review ===
+{json.dumps(stewardship_data, indent=2)}
+
+=== Dr. Checklist Quality Control ===
+{json.dumps(checklist_data, indent=2)}
+"""
+
+        findings_text = "\n".join(previous_findings) if previous_findings else "No additional findings yet."
+        
+        user_message = f"""
+Case: {case_info}
+
+Accumulated Findings:
+{findings_text}
+
+Current Round: {session.current_round} of {max_rounds} {"(FINAL ROUND - MUST DIAGNOSE)" if is_final_round else ""}
+Total Cost So Far: ${session.total_cost:.2f}
+
+Panel Member Contributions:
+{panel_summary}
+
+Based on all panel member inputs, determine the consensus action for this round. Consider:
+1. Diagnostic confidence from Dr. Hypothesis
+2. Available tests from Dr. Test-Chooser  
+3. Concerns raised by Dr. Challenger
+4. Cost considerations from Dr. Stewardship
+5. Quality assessment from Dr. Checklist
+
+{"FINAL ROUND REQUIREMENT: You must provide a diagnosis based on the best available evidence, even if confidence is lower than ideal. Select the most probable diagnosis from Dr. Hypothesis's assessment and provide clear reasoning about the diagnostic reasoning process." if is_final_round else "Choose the most appropriate action and provide detailed reasoning."}
+"""
+
+        response = await self._call_llm(system_prompt, user_message)
+        session.add_agent_message(self.role_name, "consensus_decision", response)
+        
+        try:
+            import re
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+                
+                # Force diagnosis on final round if not already chosen
+                if is_final_round and result.get("consensus_action") != "make_diagnosis":
+                    # Extract the most likely diagnosis from panel contributions
+                    hypotheses = panel_contributions.get("hypothesis", {}).get("hypotheses", [])
+                    if hypotheses:
+                        best_hypothesis = hypotheses[0]
+                        diagnosis = best_hypothesis.get("condition", "Unknown diagnosis")
+                        confidence = best_hypothesis.get("probability", 0.5)
+                    else:
+                        diagnosis = "Unable to determine specific diagnosis based on available information"
+                        confidence = 0.3
+                    
+                    return {
+                        "consensus_action": "make_diagnosis",
+                        "action_content": {
+                            "diagnosis": diagnosis,
+                            "confidence": confidence
+                        },
+                        "reasoning": f"FINAL ROUND: Making diagnosis based on best available evidence. Original consensus action was '{result.get('consensus_action')}', but final round requires diagnosis. {result.get('reasoning', '')}",
+                        "panel_synthesis": result.get("panel_synthesis", response),
+                        "confidence_assessment": f"Final round forced diagnosis with confidence {confidence:.2f}"
+                    }
+                
+                return result
+        except:
+            pass
+            
+        # Fallback response - force diagnosis on final round, ask questions otherwise
+        if is_final_round:
+            # Extract diagnosis from panel contributions for fallback
+            hypotheses = panel_contributions.get("hypothesis", {}).get("hypotheses", [])
+            if hypotheses:
+                diagnosis = hypotheses[0].get("condition", "Unknown diagnosis")
+                confidence = hypotheses[0].get("probability", 0.3)
+            else:
+                diagnosis = "Unable to determine specific diagnosis - insufficient information"
+                confidence = 0.2
+                
+            return {
+                "consensus_action": "make_diagnosis", 
+                "action_content": {
+                    "diagnosis": diagnosis,
+                    "confidence": confidence
+                },
+                "reasoning": "FINAL ROUND: JSON parsing failed, but final round requires diagnosis. Making best determination from available panel inputs.",
+                "panel_synthesis": f"JSON parsing error, using fallback diagnosis: {response[:200]}...",
+                "confidence_assessment": f"Low confidence fallback diagnosis ({confidence:.2f}) due to parsing error"
+            }
+        else:
+            return {
+                "consensus_action": "ask_questions",
+                "action_content": {
+                    "questions": ["What additional clinical information would be most helpful for diagnosis?"]
+                },
+                "reasoning": "JSON parsing failed, defaulting to request for more information",
+                "panel_synthesis": response,
+                "confidence_assessment": "Unable to assess"
+            }
 
 class DiagnosticOrchestrator:
     """
@@ -529,15 +697,35 @@ class DiagnosticOrchestrator:
         # Initialize Azure OpenAI client
         endpoint = azure_openai_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
         api_key = azure_openai_key or os.getenv("AZURE_OPENAI_KEY")
+        api_version = os.getenv("AZURE_OPENAI_API_VERSION")
+    
+        # Debug output (remove after testing)
+        print(f"Debug - OpenAI version: {openai.__version__}")
+        print(f"Debug - Endpoint: {endpoint}")
+        print(f"Debug - API Key: {'***' + api_key[-4:] if api_key else 'None'}")
+        print(f"Debug - API Version: {api_version}")
         
         if not endpoint or not api_key:
             raise ValueError("Azure OpenAI endpoint and key must be provided")
             
+        # Ensure endpoint has https:// prefix
+        if not endpoint.startswith('https://'):
+            endpoint = f"https://{endpoint}"
+            
+        # Use base_url approach for Azure OpenAI with standard openai library
+        base_url = f"{endpoint.rstrip('/')}/openai/v1/"
+        
+        print(f"Debug - Constructed base_url: {base_url}")
+
         self.client = AsyncOpenAI(
-            azure_endpoint=endpoint,
+            base_url=base_url,
             api_key=api_key,
-            api_version="2024-02-15-preview"
+            # default_headers={
+            #     "api-version": api_version
+            # }
         )
+
+        print(f"Debug - Using base_url initialization: {base_url}")
         
         # Initialize specialized agents
         self.dr_hypothesis = DrHypothesis(self.client)
@@ -545,6 +733,7 @@ class DiagnosticOrchestrator:
         self.dr_challenger = DrChallenger(self.client)
         self.dr_stewardship = DrStewardship(self.client)
         self.dr_checklist = DrChecklist(self.client)
+        self.consensus_coordinator = ConsensusCoordinator(self.client)
         
         # Execution sessions
         self.active_sessions: Dict[str, CaseExecutionSession] = {}
@@ -559,7 +748,7 @@ class DiagnosticOrchestrator:
             case_info: Initial case presentation text
             max_rounds: Maximum number of diagnostic rounds
             budget_limit: Optional budget constraint
-            execution_mode: "instant", "questions_only", "budgeted", "unconstrained", "ensemble"
+            execution_mode: "instant", "questions_only", "unconstrained"
         
         Returns:
             CaseExecutionSession with complete execution trace
@@ -569,12 +758,7 @@ class DiagnosticOrchestrator:
         self.active_sessions[case_id] = session
         self._current_session = session  # Store for cost tracking
         
-        session.add_trace(
-            ActionType.INTERNAL_DEBATE, 
-            "System", 
-            f"Starting diagnostic orchestration for case {case_id}",
-            {"execution_mode": execution_mode, "budget_limit": budget_limit}
-        )
+        # Diagnostic orchestration started - no separate trace needed
         
         current_hypotheses: List[DiagnosticHypothesis] = []
         accumulated_findings: List[str] = []
@@ -585,167 +769,195 @@ class DiagnosticOrchestrator:
         elif execution_mode == "questions_only":
             return await self._questions_only_mode(session, case_info)
         
-        # Main diagnostic loop
+        # Main diagnostic loop - each round results in exactly one of three actions
         for round_num in range(max_rounds):
             session.increment_round()
-            self._visit_cost_added_this_round = False  # Reset visit cost flag per round
             
-            session.add_trace(
-                ActionType.INTERNAL_DEBATE,
-                "System",
-                f"=== DIAGNOSTIC ROUND {round_num + 1} ==="
-            )
+            # Check budget constraints before starting round
+            if budget_limit and session.total_cost >= budget_limit:
+                # Force diagnosis due to budget constraints
+                if current_hypotheses:
+                    session.final_diagnosis = current_hypotheses[0].condition
+                    session.confidence_score = current_hypotheses[0].probability
+                else:
+                    session.final_diagnosis = "Insufficient data - budget limit reached"
+                    session.confidence_score = 0.3
+                
+                session.add_trace(
+                    ActionType.MAKE_DIAGNOSIS,
+                    "Panel Consensus", 
+                    f"Final Diagnosis (Budget Limited): {session.final_diagnosis}",
+                    {"confidence": session.confidence_score, "reason": "budget_limit"}
+                )
+                break
             
-            # Execute chain of debate
-            debate_result = await self._execute_chain_of_debate(
+            # Execute panel deliberation - each agent contributes once
+            panel_contributions = await self._execute_panel_deliberation(
                 session, case_info, accumulated_findings, current_hypotheses
             )
             
-            # Check budget constraints
-            if budget_limit and session.total_cost >= budget_limit:
-                session.add_trace(
-                    ActionType.COST_ESTIMATION,
-                    "System",
-                    f"Budget limit reached: ${session.total_cost:.2f} >= ${budget_limit:.2f}"
-                )
-                break
+            # Update current hypotheses from Dr. Hypothesis contribution
+            current_hypotheses = self._parse_hypotheses_from_response(
+                panel_contributions.get("hypothesis", {})
+            )
                 
-            # Determine next action based on debate outcome
-            action = await self._determine_next_action(session, debate_result, current_hypotheses)
+            # Consensus Coordinator synthesizes panel input into final decision
+            consensus_result = await self.consensus_coordinator.synthesize_consensus(
+                case_info, accumulated_findings, session, panel_contributions, max_rounds
+            )
             
-            if action["action"] == "diagnose":
-                session.final_diagnosis = action["diagnosis"]
-                session.confidence_score = action.get("confidence", 0.0)
+            # Execute the consensus decision
+            consensus_action = consensus_result.get("consensus_action")
+            action_content = consensus_result.get("action_content", {})
+            reasoning = consensus_result.get("reasoning", "")
+            
+            if consensus_action == ActionType.MAKE_DIAGNOSIS.value:
+                session.final_diagnosis = action_content.get("diagnosis", "Unknown diagnosis")
+                session.confidence_score = action_content.get("confidence", 0.0)
                 session.add_trace(
                     ActionType.MAKE_DIAGNOSIS,
-                    "Panel Consensus",
+                    "Consensus Coordinator",
                     f"Final Diagnosis: {session.final_diagnosis}",
-                    {"confidence": session.confidence_score}
+                    {
+                        "confidence": session.confidence_score,
+                        "reasoning": reasoning,
+                        "panel_synthesis": consensus_result.get("panel_synthesis", ""),
+                        "round": round_num + 1
+                    }
                 )
                 break
-            elif action["action"] == "order_tests":
-                # Simulate test execution and add results to findings
-                test_results = await self._simulate_test_execution(action["tests"])
-                accumulated_findings.extend(test_results)
-            elif action["action"] == "ask_questions":
-                # Simulate question answers and add to findings  
-                question_results = await self._simulate_question_answers(action["questions"])
-                accumulated_findings.extend(question_results)
                 
-            # Update hypotheses based on new findings
-            if accumulated_findings:
-                hypothesis_update = await self.dr_hypothesis.contribute(
-                    case_info, accumulated_findings, current_hypotheses, session
+            elif consensus_action == ActionType.ORDER_TESTS.value:
+                # Execute ordered tests and incorporate results for next round
+                tests_to_order = action_content.get("tests", [])
+                test_results, test_costs = await self._simulate_test_execution(tests_to_order)
+                accumulated_findings.extend(test_results)
+                session.add_trace(
+                    ActionType.ORDER_TESTS,
+                    "Consensus Coordinator",
+                    f"Ordered tests: {', '.join(tests_to_order)} (Total cost: ${test_costs:.2f})",
+                    {
+                        "tests": tests_to_order,
+                        "reasoning": reasoning,
+                        "panel_synthesis": consensus_result.get("panel_synthesis", ""),
+                        "round": round_num + 1,
+                        "test_costs": test_costs
+                    },
+                    cost_impact=test_costs
                 )
-                current_hypotheses = self._parse_hypotheses_from_response(hypothesis_update)
+                
+            elif consensus_action == ActionType.ASK_QUESTIONS.value:
+                # Ask questions and incorporate answers for next round
+                questions_to_ask = action_content.get("questions", [])
+                question_results, visit_cost = await self._simulate_question_answers(questions_to_ask)
+                accumulated_findings.extend(question_results)
+                session.add_trace(
+                    ActionType.ASK_QUESTIONS,
+                    "Consensus Coordinator",
+                    f"Asked questions: {'; '.join(questions_to_ask)}" + (f" (Visit cost: ${visit_cost:.2f})" if visit_cost > 0 else ""),
+                    {
+                        "questions": questions_to_ask,
+                        "reasoning": reasoning,
+                        "panel_synthesis": consensus_result.get("panel_synthesis", ""),
+                        "round": round_num + 1,
+                        "visit_cost": visit_cost
+                    },
+                    cost_impact=visit_cost if visit_cost > 0 else None
+                )
+            
+            else:
+                # Fallback - if consensus action is not recognized, default to ask questions
+                fallback_results, fallback_cost = await self._simulate_question_answers([
+                    "What additional information would help with diagnosis?"
+                ])
+                accumulated_findings.extend(fallback_results)
+                session.add_trace(
+                    ActionType.ASK_QUESTIONS,
+                    "Consensus Coordinator",
+                    f"Unrecognized consensus action '{consensus_action}', defaulting to questions" + (f" (Visit cost: ${fallback_cost:.2f})" if fallback_cost > 0 else ""),
+                    {
+                        "questions": ["What additional information would help with diagnosis?"],
+                        "reasoning": f"Consensus coordinator returned unrecognized action: {consensus_action}",
+                        "consensus_result": consensus_result,
+                        "round": round_num + 1,
+                        "visit_cost": fallback_cost
+                    },
+                    cost_impact=fallback_cost if fallback_cost > 0 else None
+                )
+            
+            # Round complete - new findings will be processed in next round's deliberation
         
-        session.add_trace(
-            ActionType.INTERNAL_DEBATE,
-            "System", 
-            f"Diagnostic session completed. Total cost: ${session.total_cost:.2f}"
-        )
+        # Session completed - final diagnosis should have been made in the loop
         
         return session
     
-    async def _execute_chain_of_debate(self, session: CaseExecutionSession, 
-                                     case_info: str, findings: List[str],
-                                     hypotheses: List[DiagnosticHypothesis]) -> Dict[str, Any]:
-        """Execute the structured deliberation between all agents"""
+    async def _execute_panel_deliberation(self, session: CaseExecutionSession, 
+                                        case_info: str, findings: List[str],
+                                        hypotheses: List[DiagnosticHypothesis]) -> Dict[str, Any]:
+        """Execute single-stage panel deliberation where each agent contributes once"""
         
-        session.add_trace(
-            ActionType.INTERNAL_DEBATE,
-            "System",
-            "Initiating Chain of Debate between specialist agents"
-        )
-        
-        # Collect contributions from each agent
         contributions = {}
         
-        # Dr. Hypothesis updates differential
+        # Each agent contributes once with full analysis and recommendations
+        
+        # Dr. Hypothesis provides differential diagnosis with probabilities
         hypothesis_contrib = await self.dr_hypothesis.contribute(
             case_info, findings, hypotheses, session
         )
         contributions["hypothesis"] = hypothesis_contrib
+        current_hypotheses = self._parse_hypotheses_from_response(hypothesis_contrib)
         
-        # Dr. Test-Chooser recommends tests
+        # Dr. Test-Chooser recommends tests based on current hypotheses
         test_contrib = await self.dr_test_chooser.contribute(
-            case_info, findings, hypotheses, session
+            case_info, findings, current_hypotheses, session
         )
         contributions["tests"] = test_contrib
         
-        # Dr. Challenger provides counterarguments
+        # Dr. Challenger identifies potential issues with current thinking
         challenge_contrib = await self.dr_challenger.contribute(
-            case_info, findings, hypotheses, session
+            case_info, findings, current_hypotheses, session
         )
         contributions["challenges"] = challenge_contrib
         
-        # Dr. Stewardship reviews costs
+        # Dr. Stewardship reviews cost-effectiveness
         stewardship_contrib = await self.dr_stewardship.contribute(
-            case_info, findings, hypotheses, session,
+            case_info, findings, current_hypotheses, session,
             self._parse_test_recommendations(test_contrib)
         )
         contributions["stewardship"] = stewardship_contrib
         
-        # Dr. Checklist validates consistency
+        # Dr. Checklist performs quality control assessment
         checklist_contrib = await self.dr_checklist.contribute(
-            case_info, findings, hypotheses, session, contributions
+            case_info, findings, current_hypotheses, session
         )
         contributions["checklist"] = checklist_contrib
         
-        session.add_trace(
-            ActionType.INTERNAL_DEBATE,
-            "Panel",
-            "Chain of Debate completed",
-            contributions
-        )
-        
         return contributions
+
+
     
-    async def _determine_next_action(self, session: CaseExecutionSession,
-                                   debate_result: Dict[str, Any],
-                                   hypotheses: List[DiagnosticHypothesis]) -> Dict[str, Any]:
-        """Determine the next action based on agent debate results"""
+    def _format_hypotheses_for_context(self, hypotheses: List[DiagnosticHypothesis]) -> str:
+        """Format hypotheses for context in agent deliberation"""
+        if not hypotheses:
+            return "No current hypotheses"
         
-        # Simple consensus logic - can be enhanced
-        confidence_threshold = 0.8
+        formatted = []
+        for i, hyp in enumerate(hypotheses[:3], 1):
+            formatted.append(f"{i}. {hyp.condition} ({hyp.probability:.2f}) - {hyp.reasoning[:100]}...")
         
-        if hypotheses and hypotheses[0].probability >= confidence_threshold:
-            return {
-                "action": "diagnose",
-                "diagnosis": hypotheses[0].condition,
-                "confidence": hypotheses[0].probability
-            }
-        
-        # Check stewardship recommendations
-        stewardship = debate_result.get("stewardship", {})
-        if stewardship.get("budget_recommendation") == "stop and reassess":
-            return {
-                "action": "diagnose",
-                "diagnosis": hypotheses[0].condition if hypotheses else "Insufficient data",
-                "confidence": 0.5
-            }
-        
-        # Default to ordering tests
-        tests = debate_result.get("tests", {}).get("recommended_tests", [])
-        if tests:
-            return {
-                "action": "order_tests", 
-                "tests": tests[:2]  # Limit to 2 tests per round
-            }
-        
-        # Fall back to asking questions
-        return {
-            "action": "ask_questions",
-            "questions": ["What additional symptoms or findings are present?"]
-        }
+        return "\n".join(formatted)
     
-    async def _simulate_test_execution(self, tests: List[Dict[str, Any]]) -> List[str]:
+    async def _simulate_test_execution(self, tests: List[Union[str, Dict[str, Any]]]) -> Tuple[List[str], float]:
         """Simulate execution of diagnostic tests and return mock results with cost tracking"""
         results = []
         total_round_cost = 0.0
         
         for test in tests:
-            test_name = test.get("test_name", "Unknown test")
+            # Handle both string test names and dictionary test objects
+            if isinstance(test, str):
+                test_name = test
+            else:
+                test_name = test.get("test_name", "Unknown test")
             
             # Calculate and track cost
             test_cost = cost_estimator.estimate_test_cost(test_name)
@@ -755,38 +967,25 @@ class DiagnosticOrchestrator:
             result = f"{test_name}: [Simulated result - would be actual lab/imaging result] (Cost: ${test_cost.total_cost:.2f})"
             results.append(result)
         
-        # Add cost trace
-        if hasattr(self, '_current_session'):
-            self._current_session.add_trace(
-                ActionType.COST_ESTIMATION,
-                "Cost Estimator",
-                f"Tests ordered this round cost: ${total_round_cost:.2f}",
-                {"test_costs": [{"test": t["test_name"], "cost": cost_estimator.estimate_test_cost(t["test_name"]).total_cost} for t in tests]},
-                total_round_cost
-            )
-        
-        return results
+        # Return both results and total cost for proper session tracking
+        return results, total_round_cost
     
-    async def _simulate_question_answers(self, questions: List[str]) -> List[str]:
+    async def _simulate_question_answers(self, questions: List[str]) -> Tuple[List[str], float]:
         """Simulate answers to patient questions with visit cost tracking"""
         answers = []
+        visit_cost = 0.0
         
-        # Questions are part of physician visit - add visit cost if not already added this round
-        if hasattr(self, '_current_session') and not hasattr(self, '_visit_cost_added_this_round'):
-            self._current_session.add_trace(
-                ActionType.COST_ESTIMATION,
-                "Cost Estimator", 
-                f"Physician visit cost: ${cost_estimator.PHYSICIAN_VISIT_COST:.2f}",
-                {"visit_cost": cost_estimator.PHYSICIAN_VISIT_COST},
-                cost_estimator.PHYSICIAN_VISIT_COST
-            )
-            self._visit_cost_added_this_round = True
+        # Questions are part of physician visit - add visit cost only once per case
+        if hasattr(self, '_current_session') and not hasattr(self._current_session, '_visit_cost_added'):
+            visit_cost = cost_estimator.PHYSICIAN_VISIT_COST
+            self._current_session._visit_cost_added = True
         
         for question in questions:
             # Mock answer - in real implementation, this would interface with patient records
             answer = f"Q: {question} A: [Simulated patient response]"
             answers.append(answer)
-        return answers
+        
+        return answers, visit_cost
     
     def _parse_hypotheses_from_response(self, response: Dict[str, Any]) -> List[DiagnosticHypothesis]:
         """Parse agent response into DiagnosticHypothesis objects"""
@@ -846,11 +1045,17 @@ class DiagnosticOrchestrator:
             "What are the current vital signs and physical exam findings?"
         ]
         
-        session.add_trace(ActionType.ASK_QUESTIONS, "System", "Questions-only mode: gathering additional history")
-        session.total_cost = 300  # Single physician visit cost
-        
         # Simulate getting additional information
-        findings = await self._simulate_question_answers(questions)
+        findings, visit_cost = await self._simulate_question_answers(questions)
+        
+        # Add trace with proper cost tracking
+        session.add_trace(
+            ActionType.ASK_QUESTIONS, 
+            "System", 
+            f"Questions-only mode: gathering additional history (Cost: ${visit_cost:.2f})",
+            {"questions": questions, "visit_cost": visit_cost},
+            cost_impact=visit_cost
+        )
         
         # Generate diagnosis based on questions
         hypothesis_result = await self.dr_hypothesis.contribute(case_info, findings, [], session)

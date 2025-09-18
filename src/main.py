@@ -164,9 +164,13 @@ except Exception as e:
     cosmosDBHelper = MockCosmosDBHelper()
     summarizer = MockSummarizer(cosmosDBHelper)
     
-    # Mock diagnostic orchestrator for development
-    diagnostic_orchestrator = None
-    print("⚠ Using mock services - diagnostic orchestrator disabled")
+    # Initialize diagnostic orchestrator
+    try:
+        diagnostic_orchestrator = DiagnosticOrchestrator()
+        print("✓ Successfully initialized Diagnostic Orchestrator")
+    except Exception as e:
+        print(f"⚠ Warning: Could not initialize Diagnostic Orchestrator: {e}")
+        diagnostic_orchestrator = None
 
 # Get environment-specific configuration
 code_space = os.getenv("CODESPACE_NAME")
