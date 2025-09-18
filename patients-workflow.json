@@ -1,0 +1,115 @@
+[
+  {
+    "id": "2c1b42f7-4d6d-4d7a-9f5d-5d5a7a1b9c11",
+    "mrn": "PW001",
+    "visit_id": "VW100",
+    "name": "James Smith",
+    "dob": "19580101",
+    "gender": "Male",
+    "admit_date": "2025-01-01",
+    "site": "MSB",
+    "bed": "05W-01-01",
+    "predictions": [
+      { "name": "pressure_injury", "label": "moderate", "score": "0.55" },
+      { "name": "sepsis_progression", "label": "improving", "score": "0.28" },
+      { "name": "malnutrition", "label": "high", "score": "0.81" }
+    ],
+    "rounds": {
+      "1": [
+        {
+          "role": "physician",
+          "subjective": "67-year-old male hospital day 3; history alcohol use disorder, poorly controlled type II diabetes, hypertension; found unconscious in public park. No family contacts.",
+          "objective": "On vancomycin + cefepime for sepsis (RLL pneumonia + infected bilateral LE wounds, polymicrobial incl MRSA). Vitals now stable on room air. Labs: WBC 14.6↓(18.2), Lactate 2.1↓(3.9), Cr 1.4 (baseline 1.2), GFR 52, Glucose 178, Albumin 2.4, AST 58 / ALT 42. CIWA 8 trending down from peak 16 day 1.",
+          "assessment": "Sepsis secondary to RLL pneumonia and polymicrobial lower extremity wounds (MRSA) improving; alcohol withdrawal risk—currently mild; chronic T2DM and HTN; malnutrition/hypoalbuminemia; no delirium tremens signs.",
+          "plan": "Continue IV vancomycin + cefepime; maintain CIWA monitoring for 48h until scores <10; wound care BID; await ID consult; initiate PT/OT; monitor renal function and lactate; reassess need for additional coverage; consider nutrition optimization."
+        },
+        {
+          "role": "nurse",
+          "subjective": "Alert and oriented x3 this morning, intermittent overnight confusion. Cooperative but minimally engaged.",
+          "objective": "CIWA 8–12 past 24h; last lorazepam 1 mg IV at 0200. Vitals stable, SpO2 97% RA. Bilateral shin wounds draining serosanguinous; dressings changed BID with silver alginate. Blood glucose controlled on sliding scale. Foley removed yesterday; voiding independently. Intake ~25% meals.",
+          "assessment": "Mild alcohol withdrawal; risk for malnutrition; chronic bilateral lower extremity wounds without spreading cellulitis.",
+          "plan": "Continue CIWA q4h and PRN benzodiazepine per protocol; reinforce nutrition intake; perform and document BID dressing changes; monitor glucose and mental status; recommend Nutrition consult."
+        },
+        {
+          "role": "case_manager",
+          "subjective": "No insurance, no contacts identified. Poor historical follow-up.",
+          "objective": "Social work engaged; pharmacy assistance requests submitted (insulin, antihypertensives). Exploring medical respite; shelter unlikely with ongoing IV therapy and wound care.",
+          "assessment": "High risk for discharge instability and non-adherence; unmet housing and follow-up needs.",
+          "plan": "Pursue medical respite options; coordinate outpatient wound care pathway; evaluate transitional housing with medical support; confirm medication access programs."
+        },
+        {
+          "role": "physician",
+          "subjective": "Team discussion follow-up.",
+          "objective": "Stable hemodynamics; no new findings.",
+          "assessment": "Continuing improvement; withdrawal controlled.",
+          "plan": "Continue CIWA until scores <10 x 48h; maintain current antibiotics and wound care; add Nutrition & Psych consults; reassess discharge readiness in 72h pending ID & social work."
+        },
+        {
+          "role": "nurse",
+          "subjective": "Ongoing mild withdrawal symptoms.",
+          "objective": "CIWA monitoring ongoing q4h.",
+          "assessment": "No escalation.",
+          "plan": "Maintain protocol; encourage PO intake."
+        },
+        {
+          "role": "case_manager",
+          "subjective": "Follow-up planning.",
+          "objective": "Respite bed inquiry pending.",
+          "assessment": "Placement barrier persists.",
+          "plan": "Continue respite and transitional housing screening; liaise with social work & pharmacy."
+        }
+      ],
+      "2": [
+        {
+          "role": "physician",
+          "subjective": "Hospital day 5; patient reports no new complaints; improved comfort.",
+          "objective": "Stable, afebrile, room air. Labs: WBC 11.2 (from 14.6), Lactate 1.6, Cr 1.3, GFR 56, Glucose 162, Albumin 2.3, AST 52 / ALT 38. CIWA 6 last lorazepam 2200 yesterday. On vanc + cefepime per ID (10–14 day total course). Psych: no acute intervention.",
+          "assessment": "Improving sepsis; controlled mild alcohol withdrawal; persistent malnutrition; chronic wounds with moderate drainage; deconditioning.",
+          "plan": "Continue antibiotics per ID; continue CIWA through tomorrow; encourage mobility per PT; start BID high-protein supplements; monitor wound healing; reassess discharge planning in 48h."
+        },
+        {
+          "role": "nurse",
+          "subjective": "Sleeping better; minimally engaged but cooperative.",
+          "objective": "CIWA 5–7; vitals stable SpO2 98% RA. Bilateral shin wounds moderate serosanguinous drainage; dressings intact. Intake ~30% meals; voiding independently.",
+          "assessment": "Mild withdrawal improving; ongoing wound healing needs; inadequate nutrition.",
+          "plan": "Continue CIWA q4h; monitor drainage; encourage nutrition & ambulation."
+        },
+        {
+          "role": "case_manager",
+          "subjective": "Housing and follow-up remain unresolved.",
+          "objective": "Respite evaluation active; transitional housing with medical support under review; pharmacy assistance requests submitted.",
+          "assessment": "High risk for readmission without structured post-acute support.",
+          "plan": "Escalate respite placement; coordinate outpatient wound & addiction services; finalize medication assistance."
+        },
+        {
+          "role": "pt",
+          "subjective": "Patient reports fatigue during ambulation.",
+          "objective": "Ambulates short distances with standby assist; poor endurance likely multifactorial (deconditioning, nutrition, infection).",
+          "assessment": "Deconditioning with limited endurance.",
+          "plan": "Daily mobility with nursing; PT 3x/week; reassess in 48h."
+        },
+        {
+          "role": "nutrition",
+          "subjective": "Low appetite persists (<30% meals).",
+          "objective": "Albumin 2.3; intake inadequate.",
+          "assessment": "Protein-calorie malnutrition risk.",
+          "plan": "Initiate high-protein oral supplements BID; monitor weight & intake."
+        },
+        {
+          "role": "wound_care_nurse",
+          "subjective": "No new wound discomfort reported.",
+          "objective": "LE wounds open with moderate drainage; no necrosis or deep tissue involvement.",
+          "assessment": "Chronic wounds stable without progression.",
+          "plan": "Continue BID silver alginate dressings; reassess in 48h for debridement need if healing stalls."
+        },
+        {
+          "role": "physician",
+          "subjective": "Team synthesis note.",
+          "objective": "All disciplines updated; stable course.",
+          "assessment": "Improving infection & withdrawal; persistent nutrition and disposition challenges.",
+          "plan": "Maintain current regimen; follow up ID/Psych PRN; advance mobility, nutrition supplementation; disposition planning ongoing."
+        }
+      ]
+    }
+  }
+]

@@ -10,7 +10,7 @@ import json
 import sys
 from typing import Dict, Any
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:52910"
 
 def print_test_result(test_name: str, success: bool, message: str = ""):
     """Print formatted test result"""
