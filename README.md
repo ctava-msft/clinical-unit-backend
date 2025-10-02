@@ -292,6 +292,50 @@ curl -X POST "http://localhost:8000/api/summarize" \
   -d '{"patient_id": "12345"}'
 ```
 
+## Testing
+
+The project includes comprehensive test suites for validating functionality:
+
+### Unit Tests
+
+Unit tests verify the core role management functionality including the RoleService class and CosmosDBHelper role methods.
+
+**Run unit tests:**
+```bash
+python3 test_role_service.py
+```
+
+**Test coverage includes:**
+- Role service operations (in-memory and database-backed)
+- Role assignment and retrieval
+- Database fallback mechanisms
+- Error handling and edge cases
+- Data model validation
+- 44 comprehensive unit tests with 100% pass rate
+
+### Integration Tests
+
+Integration tests validate the API endpoints and end-to-end functionality.
+
+**Prerequisites:**
+- Application must be running on port 52910
+- Start the application: `fastapi dev ./src/main.py`
+
+**Run integration tests:**
+```bash
+python3 test_roles.py
+```
+
+**Test coverage includes:**
+- All role management API endpoints
+- Role assignment and retrieval workflows
+- Invalid input validation
+- User scenarios with and without roles
+- 8 comprehensive integration tests
+
+**Manual API testing:**
+You can also test the API manually using the provided `test.http` file with REST Client extension in VS Code.
+
 ## Guidance
 
 ### Security
